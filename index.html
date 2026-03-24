@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>有休付与日数・期限 確認ツール</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      background: #f5f4f0;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: #1a1a1a;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e3dc;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .toggle-group { display: flex; gap: 8px; }
+    .toggle-btn {
+      flex: 1;
+      padding: 9px 12px;
+      border: none;
+      border-radius: 8px;
+      background: #eeece6;
+      color: #888;
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .toggle-btn.active {
+      background: #378ADD;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .date-selects { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .date-selects select {
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+      color: #1a1a1a;
+      cursor: pointer;
+    }
+    .date-selects span { font-size: 14px; color: #666; }
+
+    .divider { height: 1px; background: #e5e3dc; margin: 1rem 0; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+    .metric {
+      background: #f5f4f0;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .metric-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .metric-value { font-size: 26px; font-weight: 600; color: #1a1a1a; }
+    .metric-value span { font-size: 16px; font-weight: 400; }
+    .metric-sub { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left;
+      font-weight: 600;
+      color: #888;
+      padding: 8px 10px;
+      border-bottom: 1px solid #e5e3dc;
+      white-space: nowrap;
+    }
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e5e3dc;
+      color: #1a1a1a;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+    .badge-ok   { background: #eaf3de; color: #3b6d11; }
+    .badge-warn { background: #faeeda; color: #854f0b; }
+    .badge-exp  { background: #fcebeb; color: #a32d2d; }
+
+    .note {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 12px;
+      background: #f5f4f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      line-height: 1.6;
+    }
+    .note-special {
+      font-size: 12px;
+      color: #854f0b;
+      margin-bottom: 12px;
+      background: #faeeda;
+      border-radius: 8px;
+      padding: 8px 12px;
+      line-height: 1.6;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 2rem;
+      color: #aaa;
+      font-size: 13px;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 480px) {
+      .grid2 { grid-template-columns: 1fr; }
+      .toggle-btn { font-size: 13px; padding: 8px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>有休付与日数・期限 確認ツール</h1>
+
+    <div class="card">
+      <div class="field">
+        <label>雇用区分</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" onclick="setType('full')" id="btn-full">正職員または週30時間以上</button>
+          <button class="toggle-btn" onclick="setType('part')" id="btn-part">パート</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>入社日</label>
+        <div class="date-selects">
+          <select id="sel-year" onchange="onYearMonthChange()"></select>
+          <span>年</span>
+          <select id="sel-month" onchange="onYearMonthChange()"></select>
+          <span>月</span>
+          <select id="sel-day" onchange="calc()"></select>
+          <span>日</span>
+        </div>
+      </div>
+      <div id="part-fields" style="display:none;">
+        <div class="divider"></div>
+        <div class="field">
+          <label>週所定労働日数</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" onclick="setWeekly(4)" id="w4">週4日</button>
+            <button class="toggle-btn" onclick="setWeekly(3)" id="w3">週3日</button>
+            <button class="toggle-btn" onclick="setWeekly(2)" id="w2">週2日</button>
+            <button class="toggle-btn" onclick="setWeekly(1)" id="w1">週1日</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="results" class="empty">入社日を選択すると有休の付与状況が表示されます</div>
+
+    <footer>※このツールは社内ルールに基づく参考情報です</footer>
+  </div>
+
+  <script>
+    let empType = 'full';
+    let weeklyDays = 4;
+
+    const partSchedule = {
+      4: [7, 8, 9, 10, 12, 13, 15],
+      3: [5, 6, 6,  8,  9, 10, 11],
+      2: [3, 4, 4,  5,  6,  6,  7],
+      1: [1, 2, 2,  2,  3,  3,  3],
+    };
+
+    function applyBtnStyles() {
+      ['btn-full','btn-part'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.background = el.classList.contains('active') ? '#378ADD' : '#eeece6';
+        el.style.color      = el.classList.contains('active') ? '#fff'    : '#888';
+      });
+      [1,2,3,4].forEach(n => {
+        const el = document.getElementById('w'+n);
+        if (!el) return;
+        el.style.background = el.classList.contains('active') ? '#378ADD' : '#eeece6';
+        el.style.color      = el.classList.contains('active') ? '#fff'    : '#888';
+      });
+    }
+
+    function initSelects() {
+      const currentYear = new Date().getFullYear();
+      const ySel = document.getElementById('sel-year');
+      const mSel = document.getElementById('sel-month');
+
+      const opt0y = document.createElement('option');
+      opt0y.value = ''; opt0y.textContent = '年を選択';
+      ySel.appendChild(opt0y);
+      for (let y = currentYear; y >= 1990; y--) {
+        const o = document.createElement('option');
+        o.value = y; o.textContent = y; ySel.appendChild(o);
+      }
+
+      const opt0m = document.createElement('option');
+      opt0m.value = ''; opt0m.textContent = '月を選択';
+      mSel.appendChild(opt0m);
+      for (let m = 1; m <= 12; m++) {
+        const o = document.createElement('option');
+        o.value = m; o.textContent = m; mSel.appendChild(o);
+      }
+
+      updateDays();
+      applyBtnStyles();
+    }
+
+    function onYearMonthChange() { updateDays(); calc(); }
+
+    function updateDays() {
+      const y = parseInt(document.getElementById('sel-year').value) || 2000;
+      const m = parseInt(document.getElementById('sel-month').value) || 1;
+      const dSel = document.getElementById('sel-day');
+      const prev = dSel.value;
+      dSel.innerHTML = '';
+      const opt0 = document.createElement('option');
+      opt0.value = ''; opt0.textContent = '日を選択';
+      dSel.appendChild(opt0);
+      const maxDay = new Date(y, m, 0).getDate();
+      for (let d = 1; d <= maxDay; d++) {
+        const o = document.createElement('option');
+        o.value = d; o.textContent = d;
+        if (d === parseInt(prev)) o.selected = true;
+        dSel.appendChild(o);
+      }
+    }
+
+    function setType(t) {
+      empType = t;
+      document.getElementById('btn-full').classList.toggle('active', t === 'full');
+      document.getElementById('btn-part').classList.toggle('active', t === 'part');
+      document.getElementById('part-fields').style.display = t === 'part' ? 'block' : 'none';
+      applyBtnStyles();
+      calc();
+    }
+
+    function setWeekly(d) {
+      weeklyDays = d;
+      [1,2,3,4].forEach(n => document.getElementById('w'+n).classList.toggle('active', n === d));
+      applyBtnStyles();
+      calc();
+    }
+
+    function addMonths(date, m) {
+      const d = new Date(date);
+      d.setMonth(d.getMonth() + m);
+      return d;
+    }
+
+    function fmtDate(d) {
+      return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
+    }
+
+    function isJuly1(hire) {
+      return hire.getMonth() === 6 && hire.getDate() === 1;
+    }
+
+    function isseiDate(hire, extraYears, july1) {
+      let baseYear;
+      if (july1) {
+        baseYear = hire.getFullYear() + 1 + (extraYears || 0);
+      } else {
+        const m = hire.getMonth() + 1;
+        baseYear = hire.getFullYear() + (m <= 6 ? 1 : 2) + (extraYears || 0);
+      }
+      return new Date(baseYear, 0, 1);
+    }
+
+    function calcExp(grantDate) {
+      return new Date(grantDate.getFullYear() + 1, 11, 31);
+    }
+
+    function calc() {
+      const y = document.getElementById('sel-year').value;
+      const m = document.getElementById('sel-month').value;
+      const d = document.getElementById('sel-day').value;
+      if (!y || !m || !d) {
+        document.getElementById('results').className = 'empty';
+        document.getElementById('results').innerHTML = '入社日を選択すると有休の付与状況が表示されます';
+        return;
+      }
+
+      const hire = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+      const today = new Date(); today.setHours(0,0,0,0);
+      const july1 = isJuly1(hire);
+      let rows = [];
+
+      if (empType === 'full') {
+        if (july1) {
+          const g1  = addMonths(hire, 3);
+          const g2  = new Date(hire.getFullYear(), 11, 31);
+          const exp = new Date(hire.getFullYear() + 2, 11, 31);
+          rows.push({ label: '3ヶ月後',               grantDate: g1, days: 3, expDate: exp, special: false });
+          rows.push({ label: '6ヶ月後（12/31前倒し）', grantDate: g2, days: 7, expDate: exp, special: true  });
+        } else {
+          const g1  = addMonths(hire, 3);
+          const g2  = addMonths(hire, 6);
+          const exp = new Date(g2.getFullYear() + 1, 11, 31);
+          rows.push({ label: '3ヶ月後', grantDate: g1, days: 3, expDate: exp, special: false });
+          rows.push({ label: '6ヶ月後', grantDate: g2, days: 7, expDate: exp, special: false });
+        }
+        const annualDays   = [11, 12, 14, 16, 18, 20];
+        const annualLabels = ['1.5年後（一斉）','2.5年後（一斉）','3.5年後（一斉）','4.5年後（一斉）','5.5年後（一斉）','6.5年後（一斉）'];
+        for (let i = 0; i < annualDays.length; i++) {
+          const gd = isseiDate(hire, i, july1);
+          rows.push({ label: annualLabels[i], grantDate: gd, days: annualDays[i], expDate: calcExp(gd), special: false });
+        }
+      } else {
+        const schedule = partSchedule[weeklyDays];
+        if (july1) {
+          const g1  = new Date(hire.getFullYear(), 11, 31);
+          const exp = new Date(hire.getFullYear() + 2, 11, 31);
+          rows.push({ label: '6ヶ月後（12/31前倒し）', grantDate: g1, days: schedule[0], expDate: exp, special: true });
+        } else {
+          const g1   = addMonths(hire, 6);
+          const exp1 = new Date(g1.getFullYear() + 1, 11, 31);
+          rows.push({ label: '6ヶ月後', grantDate: g1, days: schedule[0], expDate: exp1, special: false });
+        }
+        const annualLabels = ['1.5年後（一斉）','2.5年後（一斉）','3.5年後（一斉）','4.5年後（一斉）','5.5年後（一斉）','6.5年後（一斉）'];
+        for (let i = 1; i < schedule.length; i++) {
+          const gd = isseiDate(hire, i - 1, july1);
+          rows.push({ label: annualLabels[i-1], grantDate: gd, days: schedule[i], expDate: calcExp(gd), special: false });
+        }
+      }
+
+      let totalRemaining = 0;
+      let nextGrant = null;
+      rows = rows.map(r => {
+        const granted = r.grantDate <= today;
+        const expired  = r.expDate   <= today;
+        let status, badge;
+        if (!granted)     { status = '未付与';   badge = 'badge-warn'; }
+        else if (expired) { status = '期限切れ'; badge = 'badge-exp';  }
+        else              { status = '有効';     badge = 'badge-ok';   }
+        if (granted && !expired) totalRemaining += r.days;
+        if (!granted && !nextGrant) nextGrant = r;
+        return { ...r, granted, expired, status, badge };
+      });
+
+      let html = '';
+      html += '<div class="grid2">';
+      html += `<div class="metric"><div class="metric-label">現在の有効残日数合計</div><div class="metric-value">${totalRemaining}<span> 日</span></div></div>`;
+      if (nextGrant) {
+        html += `<div class="metric"><div class="metric-label">次回付与日</div><div class="metric-value" style="font-size:16px;padding-top:4px;">${fmtDate(nextGrant.grantDate)}</div><div class="metric-sub">+${nextGrant.days}日</div></div>`;
+      } else {
+        html += `<div class="metric"><div class="metric-label">次回付与日</div><div class="metric-value" style="font-size:15px;padding-top:6px;">—</div></div>`;
+      }
+      html += '</div>';
+
+      if (july1) {
+        html += '<div class="note-special" style="margin-top:12px;">7月1日入社のため、6ヶ月後の付与を同年12月31日に前倒し。12/31付与を「6ヶ月後」とみなし、翌年1月1日から一斉付与を開始します。</div>';
+      }
+
+      if (empType === 'full') {
+        html += '<div class="note" style="margin-top:12px;">正職員または週30時間以上：入社3ヶ月後に3日、6ヶ月後に7日を付与。以降は毎年1月1日に一斉付与。有効期限は各付与翌年の12月31日。</div>';
+      } else {
+        html += `<div class="note" style="margin-top:12px;">パート週${weeklyDays}日：入社6ヶ月後に初回付与。以降は毎年1月1日に一斉付与。有効期限は各付与翌年の12月31日。</div>`;
+      }
+
+      html += '<div class="card" style="margin-top:0;"><div class="table-wrap"><table>';
+      html += '<tr><th>付与タイミング</th><th>付与日</th><th>付与日数</th><th>有効期限</th><th>状態</th></tr>';
+      for (const r of rows) {
+        const sp = r.special ? 'color:#854f0b;font-weight:600;' : '';
+        html += `<tr>
+          <td style="${sp}">${r.label}</td>
+          <td style="${sp}">${fmtDate(r.grantDate)}</td>
+          <td style="font-weight:600;${sp}">${r.days}日</td>
+          <td style="color:#888;">${fmtDate(r.expDate)}</td>
+          <td><span class="badge ${r.badge}">${r.status}</span></td>
+        </tr>`;
+      }
+      html += '</table></div></div>';
+
+      document.getElementById('results').className = '';
+      document.getElementById('results').innerHTML = html;
+    }
+
+    initSelects();
+  </script>
+</body>
+</html>
