@@ -233,7 +233,7 @@
       const opt0y = document.createElement('option');
       opt0y.value = ''; opt0y.textContent = '年を選択';
       ySel.appendChild(opt0y);
-      for (let y = currentYear; y >= 1990; y--) {
+for (let y = currentYear + 3; y >= 1990; y--) {
         const o = document.createElement('option');
         o.value = y; o.textContent = y; ySel.appendChild(o);
       }
